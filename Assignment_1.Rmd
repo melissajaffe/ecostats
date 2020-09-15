@@ -1,0 +1,124 @@
+---
+title: "Assignment_1"
+author: "Melissa Jaffe"
+date: "9/14/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+path <- "C:/Users/Melissa/Documents/Ecostats"
+setwd(path)
+knitr::opts_knit$set(root.dir = path)
+```
+
+```{r}
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(scales)
+library(tidyverse)
+```
+
+```{r}
+clim_tree_data <- read.csv("tahoe_snotel_data.csv", header = T)
+na.omit(clim_tree_data)
+head(clim_tree_data)
+sapply(clim_tree_data,class)
+summary(clim_tree_data)
+str(clim_tree_data)
+```
+#Question 1: Summarize the data by monthly normals (means) for each site
+```{r}
+subset_clim <- clim_tree_data %>% 
+  group_by(site, month, year) %>%
+  summarize(mean(tavg, na.rm = TRUE))
+subset_clim
+
+subset_clim_2 <- clim_tree_data %>% 
+  group_by(site, elev, month, year) %>%
+  summarize(mean(tavg, na.rm = TRUE))
+subset_clim_2
+
+head(subset_clim)
+
+names(subset_clim)[names(subset_clim) == "mean(tavg, na.rm = TRUE)"] <- "t_average"
+names(subset_clim_2)[names(subset_clim_2) == "mean(tavg, na.rm = TRUE)"] <- "t_average"
+
+is.data.frame(subset_clim)
+  
+```
+#Question 2: Produce univariate summary statistics for data. Produce univariate plots characterizing the data
+```{r}
+hist_clim <- ggplot(subset_clim, aes(t_average)) + geom_histogram() + facet_wrap(~site)
+hist_clim
+
+year_hist <- ggplot(subset_clim, aes(year)) + geom_histogram() + facet_wrap(~site)
+year_hist #not all sites have all years
+
+elev_dot <- ggplot(subset_clim_2, aes(x = site, y = elev)) + geom_point() 
+elev_dot
+```
+#Question 3: Fit a linear model that relates the average temperature in May to elevation using data from the 16 sites. Do the same for average temperatures in December. What are the lapse rates from these months? What do these values mean? 
+```{r}
+new_data_1 <- clim_tree_data %>%
+  group_by(site, month) %>%
+  summarize(mean(elev, na.rm = TRUE), mean(tavg, na.rm = TRUE))
+names(new_data_1)[names(new_data_1) == "mean(tavg, na.rm = TRUE)"] <- "t_average"
+names(new_data_1)[names(new_data_1) == "mean(elev, na.rm = TRUE)"] <- "elev"
+head(new_data_1)
+
+may_data <- clim_tree_data %>%
+ subset(clim_tree_data$month == "May") %>%
+  group_by(site, elev) %>%
+  summarize(mean(tavg, na.rm = TRUE))
+names(may_data)[names(may_data) == "mean(tavg, na.rm = TRUE)"] <- "t_average"
+
+dec_data <- clim_tree_data %>%
+ subset(clim_tree_data$month == "December") %>%
+  group_by(site, elev) %>%
+  summarize(mean(tavg, na.rm = TRUE))
+names(dec_data)[names(dec_data) == "mean(tavg, na.rm = TRUE)"] <- "t_average"
+
+  
+may_lm <- lm(may_data$elev~may_data$t_average)
+summary(may_lm)
+
+dec_lm <- lm(dec_data$elev~dec_data$t_average)
+summary(dec_lm)
+
+```
+#Question 4: Plot the relationship
+```{r}
+
+may_plot <- ggplot(may_data, aes(x = elev, y= t_average)) + geom_point() +geom_smooth(method = lm)
+may_plot
+
+dec_plot <-  ggplot(dec_data, aes(x = elev, y= t_average)) + geom_point() +geom_smooth(method = lm)
+dec_plot
+#without ggplot
+plot(may_data$elev, may_data$t_average, xlab="Elevation", ylab ="Temp Average")
+abline(lm(may_data$elev~may_data$t_average), col = "red")
+
+plot(dec_data$elev, dec_data$t_average, xlab="Elevation", ylab ="Temp Average")
+abline(lm(dec_data$elev~dec_data$t_average), col = "red")
+
+```
+#Question 5: Produce diagnostic  plots characterizing the fit of the linear model and its assumptions
+```{r}
+may_resids <- resid(may_lm)
+may_y_hat <- fitted(may_lm)
+plot(may_y_hat, may_resids)
+qnorm(may_resids)
+plot(may_lm)
+
+dec_resids <- resid(dec_lm)
+dec_y_hat <- fitted(dec_lm)
+plot(dec_y_hat, dec_resids)
+qnorm(dec_resids)
+plot(dec_lm)
+```
+
